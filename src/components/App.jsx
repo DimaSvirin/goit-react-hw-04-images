@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Wrap } from './App.styled';
 
 import { PER_PAGE } from 'services/constants';
@@ -9,99 +9,89 @@ import Button from 'components/Button/Button';
 import Loader from 'components/Loader/Loader';
 import Modal from 'components/Modal/Modal';
 
-class App extends Component {
-  state = {
-    searchValue: '',
+function App() {
+  const [searchValue, setSearchValue] = useState('');
 
-    gallery: [],
+  const [gallery, setGallery] = useState([]);
 
-    isLoading: false,
+  const [isLoading, setIsLoading] = useState(false);
 
-    isMore: false,
+  const [isMore, setIsMore] = useState(false);
 
-    modalImg: null,
-  };
+  const [modalImg, setModalImg] = useState(null);
 
-  componentDidUpdate(_, { gallery }) {
-    if (this.state.gallery.length === 0) window.scrollTo({ top: 0 });
-    if (gallery.length !== this.state.gallery.length)
-      window.scrollTo({
-        top: document.querySelector('body').scrollHeight,
-        behavior: 'smooth',
-      });
-  }
+  useEffect(() => {
+    if (gallery.length === 0) window.scrollTo({ top: 0 });
 
-  requestToApi = async (searchValue, currentGallery) => {
-    this.setState({ isLoading: true });
+    window.scrollTo({
+      top: document.querySelector('body').scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [gallery]);
+
+  // helper function for working with request api
+  const requestToApi = async (searchValue, currentGallery) => {
+    setIsLoading(true);
     try {
-      const { reqGallery, isMore } = await API.readData(
+      const { reqGallery, isMoreApi } = await API.readData(
         searchValue,
         Math.floor(currentGallery.length / PER_PAGE) + 1
       );
 
-      this.setState({
-        gallery: [...currentGallery, ...reqGallery],
-        isMore,
-        searchValue,
-      });
+      setGallery([...currentGallery, ...reqGallery]);
+      setIsMore(isMoreApi);
+      setSearchValue(searchValue);
     } catch (error) {
       console.error(error);
-      this.setState({
-        searchValue: '',
-        gallery: [],
-        isMore: false,
-      });
+      setGallery([]);
+      setIsMore(false);
+      setSearchValue('');
     } finally {
-      this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   };
 
-  handleSubmit = searchValue => {
-    this.setState({
-      searchValue,
-      gallery: [],
-      isLoading: true,
-    });
+  // submit new word
+  const handleSubmit = searchValue => {
+    setSearchValue(searchValue);
+    setGallery([]);
+    setIsLoading(true);
 
-    this.requestToApi(searchValue, []);
+    requestToApi(searchValue, []);
   };
 
- 
-  handleMore = () => {
-    this.requestToApi(this.state.searchValue, this.state.gallery);
+  // press button 'read more'
+  const handleMore = () => {
+    requestToApi(searchValue, gallery);
   };
 
-  
-  onClickToGallery = modalImg => {
-    this.setState({ modalImg });
-  };
+  // close modal window
+  const closeModal = () => setModalImg(null);
 
-  
-  closeModal = () => this.setState({ modalImg: null });
+  return (
+    <Wrap>
+      {/* modal */}
+      {modalImg && (
+        <Modal closeWindow={closeModal}>
+          <img src={modalImg?.img} alt={modalImg?.alt} />
+        </Modal>
+      )}
 
-  render() {
-    const { gallery, isMore, isLoading, modalImg } = this.state;
-    return (
-      <Wrap>
-       
-        {modalImg && (
-          <Modal closeWindow={this.closeModal}>
-            <img src={modalImg?.img} alt={modalImg?.alt} />
-          </Modal>
-        )}
-
-        <Searchbar onSubmit={this.handleSubmit} isDisabled={isLoading} />
-        
-        <ImageGallery
-          gallery={gallery}
-          onClickToGallery={this.onClickToGallery}
-        />
-      
-        <Loader visible={isLoading} />
-        
-        {isMore && <Button isDisabled={isLoading} onClick={this.handleMore} />}
-      </Wrap>
-    );
-  }
+      {/* search bar */}
+      <Searchbar onSubmit={handleSubmit} isDisabled={isLoading} />
+      {/* gallery list */}
+      <ImageGallery
+        gallery={gallery}
+        onClickToGallery={modalImg => setModalImg(modalImg)}
+      />
+      {/* loader */}
+      <Loader visible={isLoading} />
+      {/* button 'Load more' */}
+      {isMore && !isLoading && (
+        <Button isDisabled={isLoading} onClick={handleMore} />
+      )}
+    </Wrap>
+  );
 }
+
 export default App;
